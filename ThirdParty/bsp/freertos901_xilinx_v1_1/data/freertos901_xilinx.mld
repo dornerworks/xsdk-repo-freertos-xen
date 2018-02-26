@@ -96,4 +96,6 @@ BEGIN CATEGORY enable_stm_event_trace
 	PARAM name = stm_channel, type = int, default = 0, desc = "STM channel to use for trace. Valid channels are 0-65535";
 END CATEGORY
 
+PARAM name = hypervisor_guest, type = bool, default = false, desc = "Enable hypervisor guest support for A53 64bit EL1 Non-Secure. If hypervisor_guest is not selected, BSP will be built for EL3.", permit = user;
+
 END OS

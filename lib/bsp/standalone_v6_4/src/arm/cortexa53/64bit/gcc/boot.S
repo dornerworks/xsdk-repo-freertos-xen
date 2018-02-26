@@ -307,11 +307,11 @@ InitEL1:
 	/*Set vector table base address*/
 	ldr	x1, =vector_base
 	msr	VBAR_EL1,x1
-
+#if !(XZD_BMC)
 	mrs	x0, CPACR_EL1
 	bic	x0, x0, #(0x3 << 0x20)
 	msr	CPACR_EL1, x0
-
+#endif
 	/*
 	 * Clear FPUStatus variable to make sure that it contains current
 	 * status of FPU i.e. disabled. In case of a warm restart execution
@@ -326,6 +326,7 @@ InitEL1:
 	ldr	 x2,=EL1_stack
 	mov	 sp,x2
 
+#if !(XZD_BMC)
 	/* Disable MMU first */
 	mov	x1,#0x0
 	msr     SCTLR_EL1, x1
@@ -335,9 +336,12 @@ InitEL1:
 
 	ic      IALLU                  	//; Invalidate I cache to PoU
 	bl 	invalidate_dcaches
+#endif
+
 	dsb	 sy
 	isb
 
+#if !(XZD_BMC)
 	ldr      x1, =L0Table 		//; Get address of level 0 for TTBR0_EL1
 	msr      TTBR0_EL1, x1		//; Set TTBR0_EL1
 
@@ -362,19 +366,27 @@ InitEL1:
         ldr     x1,=0x285800518
         msr     TCR_EL1, x1
         isb
+#endif
+
 	/* Enable SError Exception for asynchronous abort */
 	mrs 	x1,DAIF
         bic	x1,x1,#(0x1<<8)
         msr	DAIF,x1
 
+#if !(XZD_BMC)
 	//; Enable MMU
 	mov	x1,#0x0
+#else
+	mrs		x1, SCTLR_EL1
+#endif
 	orr     x1, x1, #(1 << 18)    // ; Set WFE non trapping
 	orr     x1, x1, #(1 << 17)    // ; Set WFI non trapping
 	orr     x1, x1, #(1 << 5)    // ; Set CP15 barrier enabled
 	orr     x1, x1, #(1 << 12)    // ; Set I bit
 	orr     x1, x1, #(1 << 2)    // ; Set C bit
+#if !(XZD_BMC)
 	orr     x1, x1, #(1 << 0)    // ; Set M bit
+#endif
 	msr     SCTLR_EL1, x1
 	isb
 

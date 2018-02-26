@@ -76,8 +76,95 @@
 #include "xscugic.h"
 
 /* Timer used to generate the tick interrupt. */
-static XTtcPs xTimerInstance;
 XScuGic xInterruptController;
+
+#if HYP_GUEST
+#if USE_VIRT_CONSOLE
+#include "xen_events.h"
+#endif
+
+static u32 period;
+void FreeRTOS_SetupTickInterrupt( void )
+{
+	BaseType_t xStatus;
+	XTtcPs_Config *pxTimerConfiguration;
+	const uint8_t ucLevelSensitive = 1;
+	XScuGic_Config *pxInterruptControllerConfig;
+	u32 reg;
+
+	/* Initialize the interrupt controller driver. */
+	pxInterruptControllerConfig = XScuGic_LookupConfig( configINTERRUPT_CONTROLLER_DEVICE_ID );
+	XScuGic_CfgInitialize( &xInterruptController,
+						   pxInterruptControllerConfig,
+						   pxInterruptControllerConfig->CpuBaseAddress );
+
+	/* Connect the interrupt controller interrupt handler to the hardware
+	interrupt handling logic in the ARM processor. */
+	Xil_ExceptionRegisterHandler( XIL_EXCEPTION_ID_IRQ_INT,
+								( Xil_ExceptionHandler ) XScuGic_InterruptHandler,
+								&xInterruptController);
+
+
+	/* Enable interrupts in the ARM. */
+	reg = mfcp(CNTFRQ_EL0);
+	period = reg/configTICK_RATE_HZ;		// calculate period for 100Hz (10ms period)
+
+	mtcp(CNTV_CTL_EL0,0);		// ISTATUS = 0, ENABLE = 0
+
+	__asm volatile( "DSB SY" );
+	__asm volatile( "ISB SY" );
+
+	/* The priority must be the lowest possible. */
+	XScuGic_SetPriorityTriggerType( &xInterruptController, VTIMER_INTERRUPT_ID, portLOWEST_USABLE_INTERRUPT_PRIORITY << portPRIORITY_SHIFT, ucLevelSensitive );
+
+	/* Connect to the interrupt controller. */
+	XScuGic_Connect( &xInterruptController,
+			VTIMER_INTERRUPT_ID,
+					( Xil_InterruptHandler ) FreeRTOS_Tick_Handler,
+					( void * ) NULL );
+
+	/* Enable the interrupt in the GIC. */
+	XScuGic_Enable( &xInterruptController, VTIMER_INTERRUPT_ID );
+
+#if USE_VIRT_CONSOLE
+	/* Connect to the interrupt controller. */
+	XScuGic_Connect( &xInterruptController,
+			EVENT_IRQ,
+						( Xil_InterruptHandler ) handle_event_irq,
+						( void * ) NULL );
+
+	/* Enable the interrupt in the GIC. */
+	XScuGic_Enable( &xInterruptController, EVENT_IRQ );
+#endif
+
+	mtcp(CNTV_TVAL_EL0,period);		// set for 10ms
+	mtcp(CNTV_CTL_EL0,1);			// ISTATUS = 0, ENABLE = 1
+	__asm volatile( "DSB SY" );
+	__asm volatile( "ISB SY" );
+
+
+
+}
+
+/*-----------------------------------------------------------*/
+
+void FreeRTOS_ClearTickInterrupt( void )
+{
+	mtcp(CNTV_CTL_EL0,0);			// ISTATUS = 0, ENABLE = 1
+	__asm volatile( "DSB SY" );
+	__asm volatile( "ISB SY" );
+
+	mtcp(CNTV_TVAL_EL0,period);	// set for 10ms
+	__asm volatile( "DSB SY" );
+	__asm volatile( "ISB SY" );
+
+	mtcp(CNTV_CTL_EL0,1);			// ISTATUS = 0, ENABLE = 1
+	__asm volatile( "DSB SY" );
+	__asm volatile( "ISB SY" );
+}
+#else
+
+static XTtcPs xTimerInstance;
 /*-----------------------------------------------------------*/
 
 void FreeRTOS_SetupTickInterrupt( void )
@@ -158,6 +245,8 @@ volatile uint32_t ulInterruptStatus;
 	__asm volatile( "DSB SY" );
 	__asm volatile( "ISB SY" );
 }
+#endif
+
 /*-----------------------------------------------------------*/
 
 void FreeRTOS_ApplicationIRQHandler( uint32_t ulICCIAR )

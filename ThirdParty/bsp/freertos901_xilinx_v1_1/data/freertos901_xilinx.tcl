@@ -293,9 +293,18 @@ proc generate {os_handle} {
 	puts $bspcfg_fh "#define FREERTOS_BSP"
 	if { $proctype == "psu_cortexa53" } {
 		if {[string compare -nocase $compiler "arm-none-eabi-gcc"] != 0} {
-			puts $bspcfg_fh "#define EL3 1"
-			puts $bspcfg_fh "#define EL1_NONSECURE 0"
-			puts $bspcfg_fh "#define HYP_GUEST 0"
+			set hypervisor_guest [common::get_property CONFIG.hypervisor_guest $os_handle ]
+			if { $hypervisor_guest == "true" } {
+				puts $bspcfg_fh "#define EL3 0"
+				puts $bspcfg_fh "#define EL1_NONSECURE 1"
+				puts $bspcfg_fh "#define HYP_GUEST 1"
+				puts $bspcfg_fh "#define XZD_BMC 1"
+			} else {
+				puts $bspcfg_fh "#define EL3 1"
+				puts $bspcfg_fh "#define EL1_NONSECURE 0"
+				puts $bspcfg_fh "#define HYP_GUEST 0"
+				puts $bspcfg_fh "#define XZD_BMC 0"
+			}
 		}
 	}
 	close $bspcfg_fh
@@ -365,6 +374,7 @@ proc generate {os_handle} {
 
 	set config_file [xopen_new_include_file "./src/FreeRTOSConfig.h" "FreeRTOS Configuration parameters"]
 	puts $config_file "\#include \"xparameters.h\" \n"
+	puts $config_file "\#include \"bspconfig.h\" \n"
 
 	set val [common::get_property CONFIG.use_preemption $os_handle]
 	if {$val == "false"} {
@@ -813,7 +823,15 @@ proc generate {os_handle} {
 		xput_define $config_file "configUNIQUE_INTERRUPT_PRIORITIES"			   "32"
 		xput_define $config_file "configINTERRUPT_CONTROLLER_DEVICE_ID"			"XPAR_SCUGIC_SINGLE_DEVICE_ID"
 		xput_define $config_file "configINTERRUPT_CONTROLLER_BASE_ADDRESS"		 "XPAR_SCUGIC_0_DIST_BASEADDR"
-		xput_define $config_file "configINTERRUPT_CONTROLLER_CPU_INTERFACE_OFFSET" 	"0x10000"
+
+		set hypervisor_guest [common::get_property CONFIG.hypervisor_guest $os_handle ]
+		if { $hypervisor_guest == "true" } {
+			xput_define $config_file "VTIMER_INTERRUPT_ID" "27"
+			xput_define $config_file "configINTERRUPT_CONTROLLER_CPU_INTERFACE_OFFSET" 	"0x1000"
+		} else {
+			xput_define $config_file "configINTERRUPT_CONTROLLER_CPU_INTERFACE_OFFSET" 	"0x10000"
+		}
+
 
 		# Function prototypes cannot be in the common code as some compilers or
 		# ports require pre-processor guards to ensure they are not visible from
