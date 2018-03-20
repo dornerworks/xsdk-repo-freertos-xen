@@ -79,9 +79,7 @@
 XScuGic xInterruptController;
 
 #if HYP_GUEST
-#if USE_VIRT_CONSOLE
 #include "xen_events.h"
-#endif
 
 static u32 period;
 void FreeRTOS_SetupTickInterrupt( void )
@@ -126,7 +124,6 @@ void FreeRTOS_SetupTickInterrupt( void )
 	/* Enable the interrupt in the GIC. */
 	XScuGic_Enable( &xInterruptController, VTIMER_INTERRUPT_ID );
 
-#if USE_VIRT_CONSOLE
 	/* Connect to the interrupt controller. */
 	XScuGic_Connect( &xInterruptController,
 			EVENT_IRQ,
@@ -135,7 +132,6 @@ void FreeRTOS_SetupTickInterrupt( void )
 
 	/* Enable the interrupt in the GIC. */
 	XScuGic_Enable( &xInterruptController, EVENT_IRQ );
-#endif
 
 	mtcp(CNTV_TVAL_EL0,period);		// set for 10ms
 	mtcp(CNTV_CTL_EL0,1);			// ISTATUS = 0, ENABLE = 1
