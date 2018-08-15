@@ -51,7 +51,7 @@
 *
 ******************************************************************************/
 
-
+#include "bspconfig.h"
 
 .org 0
 .text
@@ -75,6 +75,31 @@ _vector_table:
 .set	VBAR, _vector_table
 
 .org VBAR
+.if (HYP_GUEST == 1)
+
+	/* Valid Image header.  */
+	/* HW reset vector.  */
+	ldr	x16, =_boot
+	br	x16
+
+	/* text offset.  */
+	.dword	0
+	/* image size.  */
+	.dword	0
+	/* flags.  */
+	.dword	8
+	/* RES0  */
+	.dword	0
+	.dword	0
+	.dword	0
+
+	/* magic  */
+	.dword	0x644d5241
+	/* RES0  */
+	.dword	0
+	/* End of Image header.  */
+.endif
+
 	b	_boot
 
 .org (VBAR + 0x80)
