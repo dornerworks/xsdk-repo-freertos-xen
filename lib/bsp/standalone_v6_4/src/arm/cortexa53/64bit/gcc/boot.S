@@ -307,7 +307,11 @@ InitEL1:
 	/*Set vector table base address*/
 	ldr	x1, =vector_base
 	msr	VBAR_EL1,x1
-#if !(XZD_BMC)
+#ifdef HYP_GUEST
+	mrs	x0, CPACR_EL1
+	orr x0, x0, #(0x3 << 20)
+	msr	CPACR_EL1, x0
+#elif !(XZD_BMC)
 	mrs	x0, CPACR_EL1
 	bic	x0, x0, #(0x3 << 0x20)
 	msr	CPACR_EL1, x0

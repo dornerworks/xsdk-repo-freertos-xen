@@ -298,7 +298,7 @@ proc generate {os_handle} {
 				puts $bspcfg_fh "#define EL3 0"
 				puts $bspcfg_fh "#define EL1_NONSECURE 1"
 				puts $bspcfg_fh "#define HYP_GUEST 1"
-				puts $bspcfg_fh "#define XZD_BMC 1"
+				puts $bspcfg_fh "#define XZD_BMC 0"
 			} else {
 				puts $bspcfg_fh "#define EL3 1"
 				puts $bspcfg_fh "#define EL1_NONSECURE 0"
